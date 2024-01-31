@@ -34,7 +34,7 @@ shops_type = {
         "Restaurant",
         "Liebesbrot",
     ],
-    "TREVEL": [
+    "TRAVEL": [
         "DBVertriebGmbH",
         "BerlinerVerkehrsbetriebe",
     ],
@@ -44,8 +44,7 @@ shops_type = {
 }
 
 
-
-def is_karten(type_string):
+def is_card(type_string):
     if type_string.startswith("Kartenz"):
         return True
     return False
@@ -114,7 +113,7 @@ def main():
                         # print(type_of_amount)
 
                         sepa_payment = is_sepa(type_of_amount)
-                        card_payment = is_karten(type_of_amount)
+                        card_payment = is_card(type_of_amount)
                         # DELETE THIS IF when sepa parser will be ready
                         if card_payment:
                             tmp_list.append("Karten")
@@ -160,8 +159,58 @@ def main():
                             counter = 0
                             continue
 
+    result_by_category = {}
     for lst in result_list:
-        print(lst)
+        # idx 3 is name of costs
+        unknown_cat = True
+        for cat_type, values in shops_type.items():
+            # iterate by each shop pfx
+            for shop_pfx in values:
+                pfx_found = False
+                if shop_pfx.lower() in lst[3].lower():
+                    if result_by_category.get(cat_type, "") == "":
+                        result_by_category[cat_type] = [lst]
+                        unknown_cat = False
+                        pfx_found = True
+                        break
+                    else:
+                        result_by_category[cat_type].append(lst)
+                        unknown_cat = False
+                        pfx_found = True
+                        break
+                if pfx_found:
+                    break
+
+
+
+            # if lst[3].lower() in values:
+            #     if result_by_category.get(cat_type, "") == "":
+            #         result_by_category[cat_type] = [lst]
+            #         unknown_cat = False
+            #         break
+            #     else:
+            #         result_by_category[cat_type].append(lst)
+            #         unknown_cat = False
+            #         break
+        if unknown_cat:
+            if result_by_category.get("UNKNOWN", "") == "":
+                result_by_category["UNKNOWN"] = [lst]
+            else:
+                result_by_category["UNKNOWN"].append(lst)
+            unknown_cat = True
+            continue
+    print(result_by_category)
+
+    for k, v in result_by_category.items():
+        print("#"*10)
+        print("#"*3, k, "#"*3)
+        print("#"*10)
+        total = 0
+        for i in v:
+            total += i[1]
+        print(total)
+
+        #print(lst)
 
 
 if __name__ == "__main__":
