@@ -1,0 +1,42 @@
+[MASTER]
+
+jobs=8
+
+load-plugins=pylint.extensions.docparams
+
+
+[BASIC]
+
+default-docstring-type=google
+
+argument-rgx=[a-z_][a-z0-9_]{1,30}$
+
+variable-rgx=[a-z_][a-z0-9_]{1,30}$
+
+good-names=_, i, j, e, m, k, v, f, t, C,
+           __metaclass__
+
+[MESSAGES CONTROL]
+
+enable=all
+
+disable=design,
+        trailing-whitespace,
+        broad-except,
+        missing-docstring,
+        missing-type-doc,
+        missing-return-type-doc,
+        suppressed-message,
+        super-with-arguments,
+        locally-disabled,
+        line-too-long,
+        raise-missing-from,
+        no-else-return,
+        no-else-raise,
+        invalid-name,
+        useless-object-inheritance,
+        too-many-lines,
+        deprecated-module,
+        duplicate-code,
+        wrong-import-position,
+        wrong-import-order
