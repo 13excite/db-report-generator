@@ -1,5 +1,6 @@
 import PyPDF2
 
+UNKNOWN_CATEGORY_NAME = "UNKNOWN"
 
 shops_type = {
     "FOOD_SHOP": [
@@ -64,7 +65,6 @@ def amount_fmt(amount: str):
     return float(amount.replace(',', '.'))
 
 
-
 def date_fmt(date_str: str):
     # 202304.12.
 
@@ -73,144 +73,161 @@ def date_fmt(date_str: str):
     day = date_str[4:6]
     "".replace(',', '.')
     return "%s.%s.%s" % (year, month, day)
+
+
+def result_by_category(result_list):
+    result_map = {}
+    for lst in result_list:
+        # idx 3 is name of payments
+
+        # by default payment category is unknown
+        # set False if shop_prefix will be found in the name of payment
+        unknown_cat = True
+        prefix_found = False
+        for cat_type, values in shops_type.items():
+            if prefix_found:
+                # break cat_type, values in shops_type.items() LOOP
+                break
+            # iterate by each shop pfx
+            for shop_prefix in values:
+                # prefix_found = False
+                if shop_prefix.lower() in lst[3].lower():
+                    if result_map.get(cat_type, "") == "":
+                        result_map[cat_type] = [lst]
+                        unknown_cat = False
+                        prefix_found = True
+                        # break shop_prefix in values LOOP
+                        break
+                    else:
+                        result_map[cat_type].append(lst)
+                        unknown_cat = False
+                        prefix_found = True
+                        # break shop_prefix in values LOOP
+                        break
+
+        if unknown_cat:
+            if result_map.get(UNKNOWN_CATEGORY_NAME, "") == "":
+                result_map[UNKNOWN_CATEGORY_NAME] = [lst]
+            else:
+                result_map[UNKNOWN_CATEGORY_NAME].append(lst)
+            unknown_cat = True
+            continue
+    return result_map
+
+
 def main():
-    with open('rechnung.pdf',"rb") as file:
+    with open('rechnung.pdf', "rb") as file:
 
         reader = PyPDF2.PdfReader(file)
 
-        page_count = len(reader.pages)
-        print(page_count)
-
         result_list = []
         for page_num in range(0, len(reader.pages)):
+
             page1 = reader.pages[page_num]
             pdf_data = page1.extract_text()
 
+            # -1 means that lines with payment information haven't yet read
             counter = -1
+            # set True if it's a line with SEPA transaction info
             sepa_payment = False
+            # set True if it's a line with payment by card info
             card_payment = False
 
-            #result_list = []
+            # tmp_list contains temporary data that will be inserted into the result_list
             tmp_list = []
-            for l in pdf_data.split('\n'):
+            for line in pdf_data.split('\n'):
                 if counter < 0:
-                    if l == "Haben Soll Vorgang Valuta Buchung":
-                        #print("HEADER FOUND")
+                    # means that the line with payment information will be the next
+                    if line == "Haben Soll Vorgang Valuta Buchung":
                         counter = 0
                 else:
-                    if l.startswith("IBAN von Seite Auszug"):
+                    if line.startswith("IBAN von Seite Auszug"):
                         counter = -1
                         continue
+                    # debit always starts with "-", for example -20.0  Kartenzahlung
+                    if line.startswith("-") and counter == 0:
+                        amount_and_type = line.split(' ')
 
-                    if l.startswith("-") and counter == 0:
-                        amount_and_type = l.split(' ')
-
+                        # 0 index is amount
                         amount = amount_fmt(amount_and_type[0])
 
-                        type_of_amount = amount_and_type[1]
-                        #print(">>>>", type_of_amount, amount)
+                        # 1 index is payment type: SEPA or Kartenzahlung
+                        payment_type = amount_and_type[1]
 
-                        # print(type_of_amount)
-
-                        sepa_payment = is_sepa(type_of_amount)
-                        card_payment = is_card(type_of_amount)
+                        # and check the type of pyment
+                        sepa_payment = is_sepa(payment_type)
+                        card_payment = is_card(payment_type)
                         # DELETE THIS IF when sepa parser will be ready
+
+                        # prepare a tmp result
                         if card_payment:
-                            tmp_list.append("Karten")
-                            tmp_list.append(amount)
+                            tmp_list.extend(["Karten", amount])
                             counter += 1
                         if sepa_payment:
-                            tmp_list.append("SEPA")
-                            tmp_list.append(amount)
+                            tmp_list.extend(["SEPA", amount])
                             counter += 1
-
+                        # next iteration
                         continue
                     if card_payment and counter != 0:
                         if counter == 1:
                             # unneeded info
                             counter += 1
+                            # next iteration
                             continue
+                        # line with date for the card info
                         if counter == 2:
-                            # print("DATEEEEE", l)
-                            tmp_list.append(date_fmt(l))
+                            tmp_list.append(date_fmt(line))
                             counter += 1
+                            # next iteration
                             continue
+                        # duplication
                         if counter == 3:
                             # just year, skip
-                            counter +=1
+                            counter += 1
+                            # next iteration
                             continue
+                        # payment name
                         if counter == 4:
-                            # print("WHOOOO",l)
-                            tmp_list.append(l)
+                            tmp_list.append(line)
+                            # append to result
                             result_list.append(tmp_list)
+                            # and clear the counter and tmp_list
                             tmp_list = []
                             counter = 0
+                            # next iteration
                             continue
                     if sepa_payment and counter != 0:
+                        # payment name
                         if counter == 1:
-                            tmp_list.append(l)
+                            tmp_list.append(line)
                             counter += 1
+                            # next iteration
                             continue
+                        # line with date for the SEPA
                         if counter == 2:
-                            tmp_list.append(date_fmt(l))
-                            tmp_list[2],tmp_list[3] = tmp_list[3], tmp_list[2]
+                            # append the date
+                            tmp_list.append(date_fmt(line))
+                            # formatting list
+                            tmp_list[2], tmp_list[3] = tmp_list[3], tmp_list[2]
+                            # append tmp to the result
                             result_list.append(tmp_list)
+                            # and clear the counter and tmp_list
                             tmp_list = []
                             counter = 0
+                            # next iteration
                             continue
 
-    result_by_category = {}
-    for lst in result_list:
-        # idx 3 is name of costs
-        unknown_cat = True
-        for cat_type, values in shops_type.items():
-            # iterate by each shop pfx
-            for shop_pfx in values:
-                pfx_found = False
-                if shop_pfx.lower() in lst[3].lower():
-                    if result_by_category.get(cat_type, "") == "":
-                        result_by_category[cat_type] = [lst]
-                        unknown_cat = False
-                        pfx_found = True
-                        break
-                    else:
-                        result_by_category[cat_type].append(lst)
-                        unknown_cat = False
-                        pfx_found = True
-                        break
-                if pfx_found:
-                    break
+    payments_by_category = result_by_category(result_list)
 
-
-
-            # if lst[3].lower() in values:
-            #     if result_by_category.get(cat_type, "") == "":
-            #         result_by_category[cat_type] = [lst]
-            #         unknown_cat = False
-            #         break
-            #     else:
-            #         result_by_category[cat_type].append(lst)
-            #         unknown_cat = False
-            #         break
-        if unknown_cat:
-            if result_by_category.get("UNKNOWN", "") == "":
-                result_by_category["UNKNOWN"] = [lst]
-            else:
-                result_by_category["UNKNOWN"].append(lst)
-            unknown_cat = True
-            continue
-    print(result_by_category)
-
-    for k, v in result_by_category.items():
-        print("#"*10)
-        print("#"*3, k, "#"*3)
-        print("#"*10)
+    # simple stdout writer
+    for k, v in payments_by_category.items():
+        print("#" * 10)
+        print("#" * 3, k, "#" * 3)
+        print("#" * 10)
         total = 0
         for i in v:
             total += i[1]
         print(total)
-
-        #print(lst)
 
 
 if __name__ == "__main__":
