@@ -1,4 +1,6 @@
 import PyPDF2
+import xlsxwriter
+
 
 UNKNOWN_CATEGORY_NAME = "UNKNOWN"
 
@@ -115,6 +117,57 @@ def result_by_category(result_list):
     return result_map
 
 
+def excel_writer(payments_by_category: dict, file_name, sheet_name):
+    workbook = xlsxwriter.Workbook(file_name)
+    worksheet = workbook.add_worksheet(sheet_name)
+    # payments_by_category values indexes
+    # idx_payment_type = 0
+    # idx_amount = 1
+    # idx_date = 2
+    # idx_payment_name = 3
+
+    worksheet.set_column(0, 4, 30)
+    merge_format = workbook.add_format(
+        {
+            "bold": 1,
+            "border": 1,
+            "align": "center",
+            "valign": "vcenter",
+            "fg_color": "yellow",
+        }
+    )
+    row_idx = 0
+    for category, values in payments_by_category.items():
+        worksheet.merge_range(row_idx, 0, row_idx, 4, category, merge_format)
+        row_idx += 1
+
+        total_by_category = 0
+        for data in values:
+            worksheet.write(row_idx, 0, data[2])
+            worksheet.write(row_idx, 1, data[1])
+            worksheet.write(row_idx, 2, data[3])
+            worksheet.write(row_idx, 3, data[0])
+            total_by_category += data[1]
+            row_idx += 1
+
+        total_format = workbook.add_format(
+            {
+                "bold": 1,
+                "border": 1,
+                "align": "center",
+                "valign": "vcenter",
+                "fg_color": "red",
+            }
+        )
+        worksheet.set_row(row_idx, height=10, cell_format=total_format)
+        worksheet.write(row_idx, 0, f"Total by {category}")
+        worksheet.write(row_idx, 1, total_by_category)
+        # and switch to the next line for write the category type header
+        row_idx += 1
+
+    workbook.close()
+
+
 def main():
     with open('rechnung.pdf', "rb") as file:
 
@@ -225,9 +278,12 @@ def main():
         print("#" * 3, k, "#" * 3)
         print("#" * 10)
         total = 0
+        print(v)
         for i in v:
             total += i[1]
         print(total)
+
+    excel_writer(payments_by_category, "test1.xlsx", "test_p")
 
 
 if __name__ == "__main__":
