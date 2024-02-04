@@ -91,7 +91,7 @@ def date_fmt(date_str: str):
     year = date_str[:4]
     day = date_str[4:6]
     "".replace(',', '.')
-    return "%s.%s.%s" % (year, month, day)
+    return f"{year}.{month}.{day}"
 
 
 def result_by_category(result_list):
@@ -110,21 +110,21 @@ def result_by_category(result_list):
             # iterate by each shop pfx
             for shop_prefix in values:
                 if shop_prefix.lower() in lst[3].lower():
-                    if result_map.get(cat_type, "") == "":
+                    if not result_map.get(cat_type, ''):
                         result_map[cat_type] = [lst]
                         unknown_cat = False
                         prefix_found = True
-                        # break shop_prefix in values LOOP
-                        break
-                    else:
-                        result_map[cat_type].append(lst)
-                        unknown_cat = False
-                        prefix_found = True
-                        # break shop_prefix in values LOOP
+                        # break "shop_prefix in values" LOOP
                         break
 
+                    result_map[cat_type].append(lst)
+                    unknown_cat = False
+                    prefix_found = True
+                    # break shop_prefix in values LOOP
+                    break
+
         if unknown_cat:
-            if result_map.get(UNKNOWN_CATEGORY_NAME, "") == "":
+            if not result_map.get(UNKNOWN_CATEGORY_NAME, ''):
                 result_map[UNKNOWN_CATEGORY_NAME] = [lst]
             else:
                 result_map[UNKNOWN_CATEGORY_NAME].append(lst)
@@ -152,7 +152,17 @@ def excel_writer(payments_by_category: dict, file_name, sheet_name):
             "fg_color": "yellow",
         }
     )
+    total_format = workbook.add_format(
+        {
+            "bold": 1,
+            "border": 1,
+            "align": "center",
+            "valign": "vcenter",
+            "fg_color": "red",
+        }
+    )
     row_idx = 0
+    total_by_month = 0
     for category, values in payments_by_category.items():
         worksheet.merge_range(row_idx, 0, row_idx, 4, category, merge_format)
         row_idx += 1
@@ -164,23 +174,20 @@ def excel_writer(payments_by_category: dict, file_name, sheet_name):
             worksheet.write(row_idx, 2, data[3])
             worksheet.write(row_idx, 3, data[0])
             total_by_category += data[1]
+            total_by_month += data[1]
             row_idx += 1
 
-        total_format = workbook.add_format(
-            {
-                "bold": 1,
-                "border": 1,
-                "align": "center",
-                "valign": "vcenter",
-                "fg_color": "red",
-            }
-        )
         worksheet.set_row(row_idx, height=10, cell_format=total_format)
         worksheet.write(row_idx, 0, f"Total by {category}")
         worksheet.write(row_idx, 1, total_by_category)
         # and switch to the next line for write the category type header
         row_idx += 1
 
+    # switch to a bit below and write total amount of money spent
+    row_idx += 2
+    worksheet.set_row(row_idx, height=10, cell_format=total_format)
+    worksheet.write(row_idx, 0, "Total by month")
+    worksheet.write(row_idx, 1, total_by_month)
     workbook.close()
 
 
@@ -230,7 +237,6 @@ def main():
                         payment_type = amount_and_type[1]
 
                         # and check the type of pyment
-                        # TODO: Bargeldauszahlung case
                         sepa_payment = is_sepa(payment_type)
                         card_payment = is_card(payment_type)
                         bargeld_payment = is_bargeld(payment_type)
