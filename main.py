@@ -16,6 +16,8 @@ shops_type = {
         "penny",
         "TEGUTSAGT",
         "lemberg",
+        "ROSSMANN",
+        "JACQUES",
     ],
     "RENT": [
         "NorbertBeran",
@@ -40,15 +42,31 @@ shops_type = {
     "TRAVEL": [
         "DBVertriebGmbH",
         "BerlinerVerkehrsbetriebe",
+        "Booking",
+        "AUSTRIAN",  # austrian airlines
+        "RYANAIR",
+        "MALLORCA",
+        "TAXI",
+        "Hotel"
+    ],
+    "Amazon": [
+        "Amazon",
     ],
     "InternetService": [
         "Spotify",
+        "Blizzard",
     ]
 }
 
 
 def is_card(type_string):
     if type_string.startswith("Kartenz"):
+        return True
+    return False
+
+
+def is_bargeld(type_string):
+    if type_string.startswith("Bargeld"):
         return True
     return False
 
@@ -63,7 +81,6 @@ def amount_fmt(amount: str):
     if ("," in amount) and ("." in amount):
         r = amount.replace(".", "").replace(",", ".")
         return float(r)
-
     return float(amount.replace(',', '.'))
 
 
@@ -92,7 +109,6 @@ def result_by_category(result_list):
                 break
             # iterate by each shop pfx
             for shop_prefix in values:
-                # prefix_found = False
                 if shop_prefix.lower() in lst[3].lower():
                     if result_map.get(cat_type, "") == "":
                         result_map[cat_type] = [lst]
@@ -169,7 +185,7 @@ def excel_writer(payments_by_category: dict, file_name, sheet_name):
 
 
 def main():
-    with open('rechnung.pdf', "rb") as file:
+    with open('jan.pdf', "rb") as file:
 
         reader = PyPDF2.PdfReader(file)
 
@@ -186,6 +202,8 @@ def main():
             # set True if it's a line with payment by card info
             card_payment = False
 
+            bargeld_payment = False
+
             # tmp_list contains temporary data that will be inserted into the result_list
             tmp_list = []
             for line in pdf_data.split('\n'):
@@ -199,6 +217,10 @@ def main():
                         continue
                     # debit always starts with "-", for example -20.0  Kartenzahlung
                     if line.startswith("-") and counter == 0:
+                        # sometimes the string is read as simply -
+                        # needs to skip it
+                        if line == "-":
+                            continue
                         amount_and_type = line.split(' ')
 
                         # 0 index is amount
@@ -208,9 +230,10 @@ def main():
                         payment_type = amount_and_type[1]
 
                         # and check the type of pyment
+                        # TODO: Bargeldauszahlung case
                         sepa_payment = is_sepa(payment_type)
                         card_payment = is_card(payment_type)
-                        # DELETE THIS IF when sepa parser will be ready
+                        bargeld_payment = is_bargeld(payment_type)
 
                         # prepare a tmp result
                         if card_payment:
@@ -219,9 +242,12 @@ def main():
                         if sepa_payment:
                             tmp_list.extend(["SEPA", amount])
                             counter += 1
+                        if bargeld_payment:
+                            tmp_list.extend(["Bargeldauszahlung", amount])
+                            counter += 1
                         # next iteration
                         continue
-                    if card_payment and counter != 0:
+                    if (card_payment or bargeld_payment) and counter != 0:
                         if counter == 1:
                             # unneeded info
                             counter += 1
@@ -283,7 +309,7 @@ def main():
             total += i[1]
         print(total)
 
-    excel_writer(payments_by_category, "test1.xlsx", "test_p")
+    excel_writer(payments_by_category, "test2.xlsx", "test_p1")
 
 
 if __name__ == "__main__":
