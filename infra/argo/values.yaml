@@ -1,0 +1,17 @@
+workflow:
+  serviceAccount:
+    create: true
+    name: "argo-workflow"
+  rbac:
+    create: true
+controller:
+  workflowNamespaces:
+    - "argo-workflows"
+server:
+  extraArgs:
+    - --auth-mode=server
+  ingress:
+    enabled: false
+# TODO: implement minio
+# artifactRepository:
+#  s3: {}
