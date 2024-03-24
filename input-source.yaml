@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: input-artifact-s3-
+spec:
+  serviceAccountName: argo-workflow
+  entrypoint: input-artifact-s3-example
+  templates:
+  - name: input-artifact-s3-example
+    steps:
+    - - name: printer
+        template: print-artifact
+
+  - name: print-artifact
+    inputs:
+      artifacts:
+      - name: my-art
+        path: /my-artifact
+        s3:
+          endpoint: minio-1710624410.default:9000
+          bucket: test
+          key: subfolder
+          insecure: true
+          accessKeySecret:
+            name: my-minio-cred
+            key: access-key
+          secretKeySecret:
+            name: my-minio-cred
+            key: secret-key
+    script:
+      image: python:alpine3.6
+      command: [python]
+      source: |
+        import os
+        tmp = []
+        for f in os.listdir('/my-artifact'):
+          tmp.append('/my-artifact' + f)
+        with open('/tmp/artifact.txt', 'w') as f:
+          f.write(str(tmp))
+
+      outputs:
+        parameters:
+        - name: data
+          valueFrom:
+            path: /tmp/artifact.txt
