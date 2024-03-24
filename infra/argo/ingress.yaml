@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argo-wf-ingress
+  namespace: argo-workflows
+spec:
+  rules:
+    - host: argo-workflow
+      http:
+        paths:
+          - pathType: ImplementationSpecific
+            backend:
+              service:
+                name: my-release-argo-workflows-server
+                port:
+                  number: 2746
