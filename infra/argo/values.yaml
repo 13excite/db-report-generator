@@ -13,5 +13,14 @@ server:
   ingress:
     enabled: false
 # TODO: implement minio
-# artifactRepository:
-#  s3: {}
+artifactRepository:
+  s3:
+    bucket: test
+    endpoint: minio-1710624410.default:9000
+    accessKeySecret:
+       name: my-minio-cred
+       key: access-key
+    secretKeySecret:
+       name: my-minio-cred
+       key: secret-key
+    insecure: true
