@@ -1,3 +1,4 @@
+import argparse
 import glob
 import PyPDF2
 import xlsxwriter
@@ -58,25 +59,25 @@ shops_type = {
     ]
 }
 
-
+# check if the payment type is card payment
 def is_card(type_string):
     if type_string.startswith("Kartenz"):
         return True
     return False
 
-
+# check if the payment type is cash withdrawal
 def is_bargeld(type_string):
     if type_string.startswith("Bargeld"):
         return True
     return False
 
-
+# check if the payment type is SEPA transaction
 def is_sepa(type_string):
     if type_string.startswith("SEPA"):
         return True
     return False
 
-
+# format amount from '1.234,00' to '1234.00
 def amount_fmt(amount: str):
     if ("," in amount) and ("." in amount):
         r = amount.replace(".", "").replace(",", ".")
@@ -88,6 +89,7 @@ def get_db_report_names() -> list:
     return glob.glob("*.pdf")
 
 
+# format date from '202304.12.' to '2023.04.12'
 def date_fmt(date_str: str):
     # 202304.12.
 
@@ -138,7 +140,6 @@ def result_by_category(result_list):
 
 
 def excel_writer(workbook: xlsxwriter.Workbook, payments_by_category: dict, sheet_name):
-    # workbook = xlsxwriter.Workbook(file_name)
     worksheet = workbook.add_worksheet(sheet_name)
     # payments_by_category values indexes
     # idx_payment_type = 0
@@ -195,8 +196,16 @@ def excel_writer(workbook: xlsxwriter.Workbook, payments_by_category: dict, shee
 
 
 def main():
-    # report_files = get_db_report_names()
-    workbook = xlsxwriter.Workbook("test2.xlsx")
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-o', '--out', type=str,
+                    default="db_report.xlsx",
+                    help='usage (-o|--out) output file name',
+                    required=False
+                    )
+    args = parser.parse_args()
+
+    workbook = xlsxwriter.Workbook(args.out)
 
     for report_file in get_db_report_names():
         with open(report_file, "rb") as file:
@@ -204,7 +213,7 @@ def main():
             reader = PyPDF2.PdfReader(file)
 
             result_list = []
-            for page_num in range(0, len(reader.pages)):
+            for page_num, _ in enumerate(reader.pages):
 
                 page1 = reader.pages[page_num]
                 pdf_data = page1.extract_text()
