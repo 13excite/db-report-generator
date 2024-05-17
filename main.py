@@ -1,6 +1,8 @@
 import argparse
 import glob
+import os
 import PyPDF2
+import sys
 import xlsxwriter
 
 UNKNOWN_CATEGORY_NAME = "UNKNOWN"
@@ -85,14 +87,12 @@ def amount_fmt(amount: str):
     return float(amount.replace(',', '.'))
 
 
-def get_db_report_names() -> list:
-    return glob.glob("*.pdf")
+def get_db_report_names(report_dir: str) -> list:
+    return glob.glob(f"{report_dir}/*.pdf")
 
 
 # format date from '202304.12.' to '2023.04.12'
 def date_fmt(date_str: str):
-    # 202304.12.
-
     month = date_str.split(".")[1]
     year = date_str[:4]
     day = date_str[4:6]
@@ -203,11 +203,19 @@ def main():
                     help='usage (-o|--out) output file name',
                     required=False
                     )
+    parser.add_argument('-i', '--input', type=str,
+                    default="./reports",
+                    help='usage (-i|--input) input folder with pdf reports',
+                    required=False
+                    )
     args = parser.parse_args()
 
     workbook = xlsxwriter.Workbook(args.out)
 
-    for report_file in get_db_report_names():
+    # check if the input folder exists
+    os.path.exists(args.input) or sys.exit(f"ERROR: Directory {args.input} doesn't exist")
+
+    for report_file in get_db_report_names(args.input):
         with open(report_file, "rb") as file:
 
             reader = PyPDF2.PdfReader(file)
