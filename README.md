@@ -1,3 +1,3 @@
-# Expense report generator from Deutsche Bank
+# Expense generator from Deutsche Bank pdf reports
 
 todo
