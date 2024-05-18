@@ -2,6 +2,7 @@ import argparse
 import glob
 import os
 import PyPDF2
+import re
 import sys
 import xlsxwriter
 
@@ -213,7 +214,8 @@ def main():
     workbook = xlsxwriter.Workbook(args.out)
 
     # check if the input folder exists
-    os.path.exists(args.input) or sys.exit(f"ERROR: Directory {args.input} doesn't exist")
+    if not os.path.exists(args.input):
+        sys.exit(f"ERROR: Directory {args.input} doesn't exist")
 
     for report_file in get_db_report_names(args.input):
         with open(report_file, "rb") as file:
@@ -247,7 +249,10 @@ def main():
                             counter = -1
                             continue
                         # debit always starts with "-", for example -20.0  Kartenzahlung
-                        if line.startswith("-") and counter == 0:
+                        #also we need to skip line with - and alphabetic symbols
+                        if line.startswith("-") and not counter and (
+                            not re.match(r"^-[A-Z]+", line)
+                        ):
                             # sometimes the string is read as simply -
                             # needs to skip it
                             if line == "-":
@@ -277,7 +282,7 @@ def main():
                                 counter += 1
                             # next iteration
                             continue
-                        if (card_payment or bargeld_payment) and counter != 0:
+                        if (card_payment or bargeld_payment) and counter:
                             if counter == 1:
                                 # unneeded info
                                 counter += 1
@@ -305,7 +310,7 @@ def main():
                                 counter = 0
                                 # next iteration
                                 continue
-                        if sepa_payment and counter != 0:
+                        if sepa_payment and counter:
                             # payment name
                             if counter == 1:
                                 tmp_list.append(line)
