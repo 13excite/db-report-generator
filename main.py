@@ -1,5 +1,9 @@
+import argparse
 import glob
+import os
 import PyPDF2
+import re
+import sys
 import xlsxwriter
 
 UNKNOWN_CATEGORY_NAME = "UNKNOWN"
@@ -58,25 +62,25 @@ shops_type = {
     ]
 }
 
-
+# check if the payment type is card payment
 def is_card(type_string):
     if type_string.startswith("Kartenz"):
         return True
     return False
 
-
+# check if the payment type is cash withdrawal
 def is_bargeld(type_string):
     if type_string.startswith("Bargeld"):
         return True
     return False
 
-
+# check if the payment type is SEPA transaction
 def is_sepa(type_string):
     if type_string.startswith("SEPA"):
         return True
     return False
 
-
+# format amount from '1.234,00' to '1234.00
 def amount_fmt(amount: str):
     if ("," in amount) and ("." in amount):
         r = amount.replace(".", "").replace(",", ".")
@@ -84,13 +88,12 @@ def amount_fmt(amount: str):
     return float(amount.replace(',', '.'))
 
 
-def get_db_report_names() -> list:
-    return glob.glob("*.pdf")
+def get_db_report_names(report_dir: str) -> list:
+    return glob.glob(f"{report_dir}/*.pdf")
 
 
+# format date from '202304.12.' to '2023.04.12'
 def date_fmt(date_str: str):
-    # 202304.12.
-
     month = date_str.split(".")[1]
     year = date_str[:4]
     day = date_str[4:6]
@@ -138,7 +141,6 @@ def result_by_category(result_list):
 
 
 def excel_writer(workbook: xlsxwriter.Workbook, payments_by_category: dict, sheet_name):
-    # workbook = xlsxwriter.Workbook(file_name)
     worksheet = workbook.add_worksheet(sheet_name)
     # payments_by_category values indexes
     # idx_payment_type = 0
@@ -195,16 +197,33 @@ def excel_writer(workbook: xlsxwriter.Workbook, payments_by_category: dict, shee
 
 
 def main():
-    # report_files = get_db_report_names()
-    workbook = xlsxwriter.Workbook("test2.xlsx")
+    parser = argparse.ArgumentParser()
 
-    for report_file in get_db_report_names():
+    parser.add_argument('-o', '--out', type=str,
+                    default="db_report.xlsx",
+                    help='usage (-o|--out) output file name',
+                    required=False
+                    )
+    parser.add_argument('-i', '--input', type=str,
+                    default="./reports",
+                    help='usage (-i|--input) input folder with pdf reports',
+                    required=False
+                    )
+    args = parser.parse_args()
+
+    workbook = xlsxwriter.Workbook(args.out)
+
+    # check if the input folder exists
+    if not os.path.exists(args.input):
+        sys.exit(f"ERROR: Directory {args.input} doesn't exist")
+
+    for report_file in get_db_report_names(args.input):
         with open(report_file, "rb") as file:
 
             reader = PyPDF2.PdfReader(file)
 
             result_list = []
-            for page_num in range(0, len(reader.pages)):
+            for page_num, _ in enumerate(reader.pages):
 
                 page1 = reader.pages[page_num]
                 pdf_data = page1.extract_text()
@@ -230,7 +249,10 @@ def main():
                             counter = -1
                             continue
                         # debit always starts with "-", for example -20.0  Kartenzahlung
-                        if line.startswith("-") and counter == 0:
+                        #also we need to skip line with - and alphabetic symbols
+                        if line.startswith("-") and not counter and (
+                            not re.match(r"^-[A-Z]+", line)
+                        ):
                             # sometimes the string is read as simply -
                             # needs to skip it
                             if line == "-":
@@ -260,7 +282,7 @@ def main():
                                 counter += 1
                             # next iteration
                             continue
-                        if (card_payment or bargeld_payment) and counter != 0:
+                        if (card_payment or bargeld_payment) and counter:
                             if counter == 1:
                                 # unneeded info
                                 counter += 1
@@ -288,7 +310,7 @@ def main():
                                 counter = 0
                                 # next iteration
                                 continue
-                        if sepa_payment and counter != 0:
+                        if sepa_payment and counter:
                             # payment name
                             if counter == 1:
                                 tmp_list.append(line)
