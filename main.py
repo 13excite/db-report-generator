@@ -62,6 +62,34 @@ shops_type = {
     ]
 }
 
+class ExcelReporter:
+    def __init__(self) -> None:
+        self.test: bool = self.__is_bargeld("Bargeldauszahlung")
+        self.excel = xlsxwriter.Workbook("db_report.xlsx")
+
+    def __del__(self) -> None:
+        self.excel.close()
+
+    def __is_card(self, type_string):
+        """check if the payment type is card payment"""
+        if type_string.startswith("Kartenz"):
+            return True
+        return False
+
+    def __is_bargeld(self, type_string):
+        """check if the payment type is cash withdrawal"""
+        if type_string.startswith("Bargeld"):
+            return True
+        return False
+
+    def __is_sepa(self, type_string):
+        """check if the payment type is SEPA transaction"""
+        if type_string.startswith("SEPA"):
+            return True
+        return False
+
+
+
 # check if the payment type is card payment
 def is_card(type_string):
     if type_string.startswith("Kartenz"):
