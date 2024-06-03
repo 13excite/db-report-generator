@@ -62,31 +62,71 @@ shops_type = {
     ]
 }
 
-class ExcelReporter:
-    def __init__(self) -> None:
-        self.test: bool = self.__is_bargeld("Bargeldauszahlung")
-        self.excel = xlsxwriter.Workbook("db_report.xlsx")
+class ExcelWriter:
+    merge_excel_style = {
+        "bold": 1,
+        "border": 1,
+        "align": "center",
+        "valign": "vcenter",
+        "fg_color": "yellow",
+    }
+    total_excel_style = {
+        "bold": 1,
+        "border": 1,
+        "align": "center",
+        "valign": "vcenter",
+        "fg_color": "red",
+    }
+
+    def __init__(self, file_name: str,) -> None:
+        self.workbook = xlsxwriter.Workbook(file_name)
 
     def __del__(self) -> None:
-        self.excel.close()
+        self.workbook.close()
+    
 
-    def __is_card(self, type_string):
-        """check if the payment type is card payment"""
-        if type_string.startswith("Kartenz"):
-            return True
-        return False
+    def write(self, payments_by_category: dict, sheet_name) -> None:
+        self.__excel_writer(payments_by_category, sheet_name)
 
-    def __is_bargeld(self, type_string):
-        """check if the payment type is cash withdrawal"""
-        if type_string.startswith("Bargeld"):
-            return True
-        return False
+    def __excel_writer(self, payments_by_category: dict, sheet_name) -> None:
+        worksheet = self.workbook.add_worksheet(sheet_name)
+        # payments_by_category values indexes
+        # idx_payment_type = 0
+        # idx_amount = 1
+        # idx_date = 2
+        # idx_payment_name = 3
 
-    def __is_sepa(self, type_string):
-        """check if the payment type is SEPA transaction"""
-        if type_string.startswith("SEPA"):
-            return True
-        return False
+        worksheet.set_column(0, 4, 30)
+        merge_format = self.workbook.add_format(self.merge_excel_style)
+        total_format = self.workbook.add_format(self.total_excel_style)
+
+        row_idx = 0
+        total_by_month = 0
+        for category, values in payments_by_category.items():
+            worksheet.merge_range(row_idx, 0, row_idx, 4, category, merge_format)
+            row_idx += 1
+
+            total_by_category = 0
+            for data in values:
+                worksheet.write(row_idx, 0, data[2])
+                worksheet.write(row_idx, 1, data[1])
+                worksheet.write(row_idx, 2, data[3])
+                worksheet.write(row_idx, 3, data[0])
+                total_by_category += data[1]
+                total_by_month += data[1]
+                row_idx += 1
+
+            worksheet.set_row(row_idx, height=10, cell_format=total_format)
+            worksheet.write(row_idx, 0, f"Total by {category}")
+            worksheet.write(row_idx, 1, total_by_category)
+            # and switch to the next line for write the category type header
+            row_idx += 1
+
+        # switch to a bit below and write total amount of money spent
+        row_idx += 2
+        worksheet.set_row(row_idx, height=10, cell_format=total_format)
+        worksheet.write(row_idx, 0, "Total by month")
+        worksheet.write(row_idx, 1, total_by_month)
 
 
 
