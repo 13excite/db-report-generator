@@ -62,6 +62,74 @@ shops_type = {
     ]
 }
 
+class ExcelWriter:
+    merge_excel_style = {
+        "bold": 1,
+        "border": 1,
+        "align": "center",
+        "valign": "vcenter",
+        "fg_color": "yellow",
+    }
+    total_excel_style = {
+        "bold": 1,
+        "border": 1,
+        "align": "center",
+        "valign": "vcenter",
+        "fg_color": "red",
+    }
+
+    def __init__(self, file_name: str,) -> None:
+        self.workbook = xlsxwriter.Workbook(file_name)
+
+    def __del__(self) -> None:
+        self.workbook.close()
+
+
+    def write(self, payments_by_category: dict, sheet_name) -> None:
+        self.__excel_writer(payments_by_category, sheet_name)
+
+    def __excel_writer(self, payments_by_category: dict, sheet_name) -> None:
+        worksheet = self.workbook.add_worksheet(sheet_name)
+        # payments_by_category values indexes:
+        # idx_payment_type = 0
+        # idx_amount = 1
+        # idx_date = 2
+        # idx_payment_name = 3
+
+        worksheet.set_column(0, 4, 30)
+        merge_format = self.workbook.add_format(self.merge_excel_style)
+        total_format = self.workbook.add_format(self.total_excel_style)
+
+        row_idx = 0
+        total_by_month = 0
+        for category, values in payments_by_category.items():
+            worksheet.merge_range(row_idx, 0, row_idx, 4, category, merge_format)
+            row_idx += 1
+
+            total_by_category = 0
+            for data in values:
+                worksheet.write(row_idx, 0, data[2])
+                worksheet.write(row_idx, 1, data[1])
+                worksheet.write(row_idx, 2, data[3])
+                worksheet.write(row_idx, 3, data[0])
+                total_by_category += data[1]
+                total_by_month += data[1]
+                row_idx += 1
+
+            worksheet.set_row(row_idx, height=10, cell_format=total_format)
+            worksheet.write(row_idx, 0, f"Total by {category}")
+            worksheet.write(row_idx, 1, total_by_category)
+            # and switch to the next line for write the category type header
+            row_idx += 1
+
+        # switch to a bit below and write total amount of money spent
+        row_idx += 2
+        worksheet.set_row(row_idx, height=10, cell_format=total_format)
+        worksheet.write(row_idx, 0, "Total by month")
+        worksheet.write(row_idx, 1, total_by_month)
+
+
+
 # check if the payment type is card payment
 def is_card(type_string):
     if type_string.startswith("Kartenz"):
@@ -139,63 +207,6 @@ def result_by_category(result_list):
             continue
     return result_map
 
-
-def excel_writer(workbook: xlsxwriter.Workbook, payments_by_category: dict, sheet_name):
-    worksheet = workbook.add_worksheet(sheet_name)
-    # payments_by_category values indexes
-    # idx_payment_type = 0
-    # idx_amount = 1
-    # idx_date = 2
-    # idx_payment_name = 3
-
-    worksheet.set_column(0, 4, 30)
-    merge_format = workbook.add_format(
-        {
-            "bold": 1,
-            "border": 1,
-            "align": "center",
-            "valign": "vcenter",
-            "fg_color": "yellow",
-        }
-    )
-    total_format = workbook.add_format(
-        {
-            "bold": 1,
-            "border": 1,
-            "align": "center",
-            "valign": "vcenter",
-            "fg_color": "red",
-        }
-    )
-    row_idx = 0
-    total_by_month = 0
-    for category, values in payments_by_category.items():
-        worksheet.merge_range(row_idx, 0, row_idx, 4, category, merge_format)
-        row_idx += 1
-
-        total_by_category = 0
-        for data in values:
-            worksheet.write(row_idx, 0, data[2])
-            worksheet.write(row_idx, 1, data[1])
-            worksheet.write(row_idx, 2, data[3])
-            worksheet.write(row_idx, 3, data[0])
-            total_by_category += data[1]
-            total_by_month += data[1]
-            row_idx += 1
-
-        worksheet.set_row(row_idx, height=10, cell_format=total_format)
-        worksheet.write(row_idx, 0, f"Total by {category}")
-        worksheet.write(row_idx, 1, total_by_category)
-        # and switch to the next line for write the category type header
-        row_idx += 1
-
-    # switch to a bit below and write total amount of money spent
-    row_idx += 2
-    worksheet.set_row(row_idx, height=10, cell_format=total_format)
-    worksheet.write(row_idx, 0, "Total by month")
-    worksheet.write(row_idx, 1, total_by_month)
-
-
 def main():
     parser = argparse.ArgumentParser()
 
@@ -211,11 +222,11 @@ def main():
                     )
     args = parser.parse_args()
 
-    workbook = xlsxwriter.Workbook(args.out)
-
     # check if the input folder exists
     if not os.path.exists(args.input):
         sys.exit(f"ERROR: Directory {args.input} doesn't exist")
+
+    eWriter = ExcelWriter(args.out)
 
     for report_file in get_db_report_names(args.input):
         with open(report_file, "rb") as file:
@@ -334,9 +345,7 @@ def main():
         payments_by_category = result_by_category(result_list)
 
         report_month = report_file.split('.')[0]
-        excel_writer(workbook, payments_by_category, report_month)
-    # close workbook file
-    workbook.close()
+        eWriter.write(payments_by_category, report_month)
 
 
 if __name__ == "__main__":
