@@ -1,9 +1,11 @@
 import argparse
 import glob
+import io
 import os
-import PyPDF2
 import re
 import sys
+
+import PyPDF2
 import xlsxwriter
 
 UNKNOWN_CATEGORY_NAME = "UNKNOWN"
@@ -84,7 +86,6 @@ class ExcelWriter:
     def __del__(self) -> None:
         self.workbook.close()
 
-
     def write(self, payments_by_category: dict, sheet_name) -> None:
         self.__excel_writer(payments_by_category, sheet_name)
 
@@ -129,31 +130,78 @@ class ExcelWriter:
         worksheet.write(row_idx, 1, total_by_month)
 
 
+class PdfReportParser:
 
-# check if the payment type is card payment
-def is_card(type_string):
-    if type_string.startswith("Kartenz"):
-        return True
-    return False
+    def __init__(self) -> None:
+        self.result_list = []
+        self.__reader: PyPDF2.PdfReader = None
 
-# check if the payment type is cash withdrawal
-def is_bargeld(type_string):
-    if type_string.startswith("Bargeld"):
-        return True
-    return False
+    # read pdf file
+    def read_pdf(self, file_stream: io.BufferedReader):
+        self.__reader = PyPDF2.PdfReader(file_stream)
 
-# check if the payment type is SEPA transaction
-def is_sepa(type_string):
-    if type_string.startswith("SEPA"):
-        return True
-    return False
+    # check if the payment type is card payment
+    @staticmethod
+    def __is_card(type_string):
+        if type_string.startswith("Kartenz"):
+            return True
+        return False
 
-# format amount from '1.234,00' to '1234.00
-def amount_fmt(amount: str):
-    if ("," in amount) and ("." in amount):
-        r = amount.replace(".", "").replace(",", ".")
-        return float(r)
-    return float(amount.replace(',', '.'))
+    # check if the payment type is cash withdrawal
+    @staticmethod
+    def __is_bargeld(type_string):
+        if type_string.startswith("Bargeld"):
+            return True
+        return False
+
+    # check if the payment type is SEPA transaction
+    @staticmethod
+    def __is_sepa(type_string):
+        if type_string.startswith("SEPA"):
+            return True
+        return False
+
+    # format amount from '1.234,00' to '1234.00
+    @staticmethod
+    def __amount_fmt(amount: str):
+        if ("," in amount) and ("." in amount):
+            r = amount.replace(".", "").replace(",", ".")
+            return float(r)
+        return float(amount.replace(',', '.'))
+
+    # format date from '202304.12.' to '2023.04.12'
+    @staticmethod
+    def __date_fmt(date_str: str):
+        month = date_str.split(".")[1]
+        year = date_str[:4]
+        day = date_str[4:6]
+        "".replace(',', '.')
+        return f"{year}.{month}.{day}"
+
+# # check if the payment type is card payment
+# def is_card(type_string):
+#     if type_string.startswith("Kartenz"):
+#         return True
+#     return False
+
+# # check if the payment type is cash withdrawal
+# def is_bargeld(type_string):
+#     if type_string.startswith("Bargeld"):
+#         return True
+#     return False
+
+# # check if the payment type is SEPA transaction
+# def is_sepa(type_string):
+#     if type_string.startswith("SEPA"):
+#         return True
+#     return False
+
+# # format amount from '1.234,00' to '1234.00
+# def amount_fmt(amount: str):
+#     if ("," in amount) and ("." in amount):
+#         r = amount.replace(".", "").replace(",", ".")
+#         return float(r)
+#     return float(amount.replace(',', '.'))
 
 
 def get_db_report_names(report_dir: str) -> list:
@@ -161,12 +209,12 @@ def get_db_report_names(report_dir: str) -> list:
 
 
 # format date from '202304.12.' to '2023.04.12'
-def date_fmt(date_str: str):
-    month = date_str.split(".")[1]
-    year = date_str[:4]
-    day = date_str[4:6]
-    "".replace(',', '.')
-    return f"{year}.{month}.{day}"
+# def date_fmt(date_str: str):
+#     month = date_str.split(".")[1]
+#     year = date_str[:4]
+#     day = date_str[4:6]
+#     "".replace(',', '.')
+#     return f"{year}.{month}.{day}"
 
 
 def result_by_category(result_list):
@@ -226,7 +274,7 @@ def main():
     if not os.path.exists(args.input):
         sys.exit(f"ERROR: Directory {args.input} doesn't exist")
 
-    eWriter = ExcelWriter(args.out)
+    e_writer = ExcelWriter(args.out)
 
     for report_file in get_db_report_names(args.input):
         with open(report_file, "rb") as file:
@@ -345,7 +393,7 @@ def main():
         payments_by_category = result_by_category(result_list)
 
         report_month = report_file.split('.')[0]
-        eWriter.write(payments_by_category, report_month)
+        e_writer.write(payments_by_category, report_month)
 
 
 if __name__ == "__main__":
