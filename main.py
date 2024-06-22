@@ -222,7 +222,8 @@ class PdfReportParser:
                         # 1 index is payment type: SEPA or Kartenzahlung
                         payment_type = amount_and_type[1]
 
-                        # and check the type of pyment
+                        # TODO: move payment type checker to the separate function
+                        # and check the type of payment
                         sepa_payment = self.__is_sepa(payment_type)
                         card_payment = self.__is_card(payment_type)
                         bargeld_payment = self.__is_bargeld(payment_type)
@@ -396,6 +397,8 @@ def main():
         with open(report_file, "rb") as file:
 
             pdf_parser.read_pdf(file)
+
+            # TODO: use result_list as a class attribute
             result_list = []
             pdf_parser.parse(result_list)
 
