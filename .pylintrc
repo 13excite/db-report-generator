@@ -21,6 +21,7 @@ good-names=_, i, j, e, m, k, v, f, t, C,
 enable=all
 
 disable=design,
+        trailing-whitespace,
         broad-except,
         missing-docstring,
         missing-type-doc,
@@ -35,4 +36,6 @@ disable=design,
         useless-object-inheritance,
         too-many-lines,
         deprecated-module,
+        wrong-import-position,
+        wrong-import-order,
         duplicate-code
