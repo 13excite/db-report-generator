@@ -10,7 +10,18 @@ import xlsxwriter
 
 UNKNOWN_CATEGORY_NAME = "UNKNOWN"
 
-shops_type = {
+shop_types = {
+    "GENERAL_SHOP": [
+        "ROSSMANN",
+        "DECATHLON",
+        "DASFUTTERHAUS",
+        "TKMaxx",
+    ],
+    "HEALTH": [
+        "Apotheke",
+        "AllDentZahnzentrum",
+        "BFShealthfinance",
+    ],
     "FOOD_SHOP": [
         "ALDI",
         "REWE",
@@ -24,6 +35,14 @@ shops_type = {
         "lemberg",
         "ROSSMANN",
         "JACQUES",
+        "E.LECLERC",
+        "GLOBUS",
+        "LIDLSAGTDANKE",
+        "LidlsagtDanke",
+        "AUCHAN",
+    ],
+    "CASH": [
+        ".DEUTSCHE BANKAG",
     ],
     "RENT": [
         "NorbertBeran",
@@ -31,19 +50,27 @@ shops_type = {
         "Vodafone",
         "Immobilien",
         "GCreGetsafe",
+        "Rundfunk",
     ],
     "Education": [
         "Volkshochschule",
         "Linuxf",
+        "Udemy",
     ],
     "CAFE": [
-        "Backerei"
+        "BAECKER"
+        "Baecker ",
+        "Backerei",
         "B.ckerei",
         "Kulturbrauerei",
         "Cafe",
         "KAMPS",
         "Restaurant",
         "Liebesbrot",
+        "SCHROEER",
+        "Espresso",
+        "PIZZABOY",
+        "DRIES",
     ],
     "TRAVEL": [
         "DBVertriebGmbH",
@@ -53,17 +80,24 @@ shops_type = {
         "RYANAIR",
         "MALLORCA",
         "TAXI",
-        "Hotel"
+        "Hotel",
+        "Condor",
+        "MERCURE",
+        "AIRBNB",
     ],
     "Amazon": [
         "Amazon",
+        "RivertyGmb",
     ],
     "InternetService": [
         "Spotify",
         "Blizzard",
+    ],
+    "EVENT": [
+        "Eventim.Sports",
+        "Kino",
     ]
 }
-
 class ExcelWriter:
     merge_excel_style = {
         "bold": 1,
@@ -226,9 +260,9 @@ def result_by_category(result_list):
         # set False if shop_prefix will be found in the name of payment
         unknown_cat = True
         prefix_found = False
-        for cat_type, values in shops_type.items():
+        for cat_type, values in shop_types.items():
             if prefix_found:
-                # break cat_type, values in shops_type.items() LOOP
+                # break cat_type, values in shop_types.items() LOOP
                 break
             # iterate by each shop pfx
             for shop_prefix in values:
