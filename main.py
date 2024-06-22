@@ -1,14 +1,29 @@
 import argparse
 import glob
+import io
 import os
-import PyPDF2
 import re
 import sys
+
+import PyPDF2
 import xlsxwriter
+
+from typing import List
 
 UNKNOWN_CATEGORY_NAME = "UNKNOWN"
 
-shops_type = {
+shop_types = {
+    "GENERAL_SHOP": [
+        "ROSSMANN",
+        "DECATHLON",
+        "DASFUTTERHAUS",
+        "TKMaxx",
+    ],
+    "HEALTH": [
+        "Apotheke",
+        "AllDentZahnzentrum",
+        "BFShealthfinance",
+    ],
     "FOOD_SHOP": [
         "ALDI",
         "REWE",
@@ -22,6 +37,14 @@ shops_type = {
         "lemberg",
         "ROSSMANN",
         "JACQUES",
+        "E.LECLERC",
+        "GLOBUS",
+        "LIDLSAGTDANKE",
+        "LidlsagtDanke",
+        "AUCHAN",
+    ],
+    "CASH": [
+        ".DEUTSCHE BANKAG",
     ],
     "RENT": [
         "NorbertBeran",
@@ -29,19 +52,27 @@ shops_type = {
         "Vodafone",
         "Immobilien",
         "GCreGetsafe",
+        "Rundfunk",
     ],
     "Education": [
         "Volkshochschule",
         "Linuxf",
+        "Udemy",
     ],
     "CAFE": [
-        "Backerei"
+        "BAECKER"
+        "Baecker ",
+        "Backerei",
         "B.ckerei",
         "Kulturbrauerei",
         "Cafe",
         "KAMPS",
         "Restaurant",
         "Liebesbrot",
+        "SCHROEER",
+        "Espresso",
+        "PIZZABOY",
+        "DRIES",
     ],
     "TRAVEL": [
         "DBVertriebGmbH",
@@ -51,16 +82,25 @@ shops_type = {
         "RYANAIR",
         "MALLORCA",
         "TAXI",
-        "Hotel"
+        "Hotel",
+        "Condor",
+        "MERCURE",
+        "AIRBNB",
     ],
     "Amazon": [
         "Amazon",
+        "RivertyGmb",
     ],
     "InternetService": [
         "Spotify",
         "Blizzard",
+    ],
+    "EVENT": [
+        "Eventim.Sports",
+        "Kino",
     ]
 }
+
 
 class ExcelWriter:
     merge_excel_style = {
@@ -84,7 +124,6 @@ class ExcelWriter:
     def __del__(self) -> None:
         self.workbook.close()
 
-
     def write(self, payments_by_category: dict, sheet_name) -> None:
         self.__excel_writer(payments_by_category, sheet_name)
 
@@ -103,7 +142,8 @@ class ExcelWriter:
         row_idx = 0
         total_by_month = 0
         for category, values in payments_by_category.items():
-            worksheet.merge_range(row_idx, 0, row_idx, 4, category, merge_format)
+            worksheet.merge_range(row_idx, 0, row_idx, 4,
+                                  category, merge_format)
             row_idx += 1
 
             total_by_category = 0
@@ -129,44 +169,167 @@ class ExcelWriter:
         worksheet.write(row_idx, 1, total_by_month)
 
 
+class PdfReportParser:
 
-# check if the payment type is card payment
-def is_card(type_string):
-    if type_string.startswith("Kartenz"):
-        return True
-    return False
+    def __init__(self) -> None:
+        # self.result_list = []
+        self.__reader: PyPDF2.PdfReader = None
 
-# check if the payment type is cash withdrawal
-def is_bargeld(type_string):
-    if type_string.startswith("Bargeld"):
-        return True
-    return False
+    # read pdf file
+    def read_pdf(self, file_stream: io.BufferedReader):
+        self.__reader = PyPDF2.PdfReader(file_stream)
 
-# check if the payment type is SEPA transaction
-def is_sepa(type_string):
-    if type_string.startswith("SEPA"):
-        return True
-    return False
+    def parse(self, result_list: List):
+        for page_num, _ in enumerate(self.__reader.pages):
 
-# format amount from '1.234,00' to '1234.00
-def amount_fmt(amount: str):
-    if ("," in amount) and ("." in amount):
-        r = amount.replace(".", "").replace(",", ".")
-        return float(r)
-    return float(amount.replace(',', '.'))
+            page1 = self.__reader.pages[page_num]
+            pdf_data = page1.extract_text()
+
+            # -1 means that lines with payment information haven't yet read
+            counter = -1
+            # set True if it's a line with SEPA transaction info
+            sepa_payment = False
+            # set True if it's a line with payment by card info
+            card_payment = False
+
+            bargeld_payment = False
+
+            # tmp_list contains temporary data that will be inserted into the result_list
+            tmp_list = []
+            for line in pdf_data.split('\n'):
+                if counter < 0:
+                    # means that the line with payment information will be the next
+                    if line == "Haben Soll Vorgang Valuta Buchung":
+                        counter = 0
+                else:
+                    if line.startswith("IBAN von Seite Auszug"):
+                        counter = -1
+                        continue
+                    # debit always starts with "-", for example -20.0  Kartenzahlung
+                    # also we need to skip line with - and alphabetic symbols
+                    if line.startswith("-") and not counter and (
+                        not re.match(r"^-[A-Z]+", line)
+                    ):
+                        # sometimes the string is read as simply -
+                        # needs to skip it
+                        if line == "-":
+                            continue
+                        amount_and_type = line.split(' ')
+
+                        # 0 index is amount
+                        amount = self.__amount_fmt(amount_and_type[0])
+
+                        # 1 index is payment type: SEPA or Kartenzahlung
+                        payment_type = amount_and_type[1]
+
+                        # TODO: move payment type checker to the separate function
+                        # and check the type of payment
+                        sepa_payment = self.__is_sepa(payment_type)
+                        card_payment = self.__is_card(payment_type)
+                        bargeld_payment = self.__is_bargeld(payment_type)
+
+                        # prepare a tmp result
+                        if card_payment:
+                            tmp_list.extend(["Karten", amount])
+                            counter += 1
+                        if sepa_payment:
+                            tmp_list.extend(["SEPA", amount])
+                            counter += 1
+                        if bargeld_payment:
+                            tmp_list.extend(["Bargeldauszahlung", amount])
+                            counter += 1
+                        # next iteration
+                        continue
+                    if (card_payment or bargeld_payment) and counter:
+                        if counter == 1:
+                            # unneeded info
+                            counter += 1
+                            # next iteration
+                            continue
+                        # line with date for the card info
+                        if counter == 2:
+                            tmp_list.append(self.__date_fmt(line))
+                            counter += 1
+                            # next iteration
+                            continue
+                        # duplication
+                        if counter == 3:
+                            # just year, skip
+                            counter += 1
+                            # next iteration
+                            continue
+                        # payment name
+                        if counter == 4:
+                            tmp_list.append(line)
+                            # append to result
+                            result_list.append(tmp_list)
+                            # and clear the counter and tmp_list
+                            tmp_list = []
+                            counter = 0
+                            # next iteration
+                            continue
+                    if sepa_payment and counter:
+                        # payment name
+                        if counter == 1:
+                            tmp_list.append(line)
+                            counter += 1
+                            # next iteration
+                            continue
+                        # line with date for the SEPA
+                        if counter == 2:
+                            # append the date
+                            tmp_list.append(self.__date_fmt(line))
+                            # formatting list
+                            tmp_list[2], tmp_list[3] = tmp_list[3], tmp_list[2]
+                            # append tmp to the result
+                            result_list.append(tmp_list)
+                            # and clear the counter and tmp_list
+                            tmp_list = []
+                            counter = 0
+                            # next iteration
+                            continue
+
+    # check if the payment type is card payment
+    @staticmethod
+    def __is_card(type_string):
+        if type_string.startswith("Kartenz"):
+            return True
+        return False
+
+    # check if the payment type is cash withdrawal
+    @staticmethod
+    def __is_bargeld(type_string):
+        if type_string.startswith("Bargeld"):
+            return True
+        return False
+
+    # check if the payment type is SEPA transaction
+    @staticmethod
+    def __is_sepa(type_string):
+        if type_string.startswith("SEPA"):
+            return True
+        return False
+
+    # format amount from '1.234,00' to '1234.00
+    @staticmethod
+    def __amount_fmt(amount: str):
+        if ("," in amount) and ("." in amount):
+            r = amount.replace(".", "").replace(",", ".")
+            return float(r)
+        return float(amount.replace(',', '.'))
+
+    # format date from '202304.12.' to '2023.04.12'
+    @staticmethod
+    def __date_fmt(date_str: str):
+        month = date_str.split(".")[1]
+        year = date_str[:4]
+        day = date_str[4:6]
+        "".replace(',', '.')
+        return f"{year}.{month}.{day}"
 
 
 def get_db_report_names(report_dir: str) -> list:
     return glob.glob(f"{report_dir}/*.pdf")
-
-
-# format date from '202304.12.' to '2023.04.12'
-def date_fmt(date_str: str):
-    month = date_str.split(".")[1]
-    year = date_str[:4]
-    day = date_str[4:6]
-    "".replace(',', '.')
-    return f"{year}.{month}.{day}"
 
 
 def result_by_category(result_list):
@@ -178,9 +341,9 @@ def result_by_category(result_list):
         # set False if shop_prefix will be found in the name of payment
         unknown_cat = True
         prefix_found = False
-        for cat_type, values in shops_type.items():
+        for cat_type, values in shop_types.items():
             if prefix_found:
-                # break cat_type, values in shops_type.items() LOOP
+                # break cat_type, values in shop_types.items() LOOP
                 break
             # iterate by each shop pfx
             for shop_prefix in values:
@@ -207,145 +370,42 @@ def result_by_category(result_list):
             continue
     return result_map
 
+
 def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('-o', '--out', type=str,
-                    default="db_report.xlsx",
-                    help='usage (-o|--out) output file name',
-                    required=False
-                    )
+                        default="db_report.xlsx",
+                        help='usage (-o|--out) output file name',
+                        required=False
+                        )
     parser.add_argument('-i', '--input', type=str,
-                    default="./reports",
-                    help='usage (-i|--input) input folder with pdf reports',
-                    required=False
-                    )
+                        default="./reports",
+                        help='usage (-i|--input) input folder with pdf reports',
+                        required=False
+                        )
     args = parser.parse_args()
 
     # check if the input folder exists
     if not os.path.exists(args.input):
         sys.exit(f"ERROR: Directory {args.input} doesn't exist")
 
-    eWriter = ExcelWriter(args.out)
+    e_writer = ExcelWriter(args.out)
+    pdf_parser = PdfReportParser()
 
     for report_file in get_db_report_names(args.input):
         with open(report_file, "rb") as file:
 
-            reader = PyPDF2.PdfReader(file)
+            pdf_parser.read_pdf(file)
 
+            # TODO: use result_list as a class attribute
             result_list = []
-            for page_num, _ in enumerate(reader.pages):
-
-                page1 = reader.pages[page_num]
-                pdf_data = page1.extract_text()
-
-                # -1 means that lines with payment information haven't yet read
-                counter = -1
-                # set True if it's a line with SEPA transaction info
-                sepa_payment = False
-                # set True if it's a line with payment by card info
-                card_payment = False
-
-                bargeld_payment = False
-
-                # tmp_list contains temporary data that will be inserted into the result_list
-                tmp_list = []
-                for line in pdf_data.split('\n'):
-                    if counter < 0:
-                        # means that the line with payment information will be the next
-                        if line == "Haben Soll Vorgang Valuta Buchung":
-                            counter = 0
-                    else:
-                        if line.startswith("IBAN von Seite Auszug"):
-                            counter = -1
-                            continue
-                        # debit always starts with "-", for example -20.0  Kartenzahlung
-                        #also we need to skip line with - and alphabetic symbols
-                        if line.startswith("-") and not counter and (
-                            not re.match(r"^-[A-Z]+", line)
-                        ):
-                            # sometimes the string is read as simply -
-                            # needs to skip it
-                            if line == "-":
-                                continue
-                            amount_and_type = line.split(' ')
-
-                            # 0 index is amount
-                            amount = amount_fmt(amount_and_type[0])
-
-                            # 1 index is payment type: SEPA or Kartenzahlung
-                            payment_type = amount_and_type[1]
-
-                            # and check the type of pyment
-                            sepa_payment = is_sepa(payment_type)
-                            card_payment = is_card(payment_type)
-                            bargeld_payment = is_bargeld(payment_type)
-
-                            # prepare a tmp result
-                            if card_payment:
-                                tmp_list.extend(["Karten", amount])
-                                counter += 1
-                            if sepa_payment:
-                                tmp_list.extend(["SEPA", amount])
-                                counter += 1
-                            if bargeld_payment:
-                                tmp_list.extend(["Bargeldauszahlung", amount])
-                                counter += 1
-                            # next iteration
-                            continue
-                        if (card_payment or bargeld_payment) and counter:
-                            if counter == 1:
-                                # unneeded info
-                                counter += 1
-                                # next iteration
-                                continue
-                            # line with date for the card info
-                            if counter == 2:
-                                tmp_list.append(date_fmt(line))
-                                counter += 1
-                                # next iteration
-                                continue
-                            # duplication
-                            if counter == 3:
-                                # just year, skip
-                                counter += 1
-                                # next iteration
-                                continue
-                            # payment name
-                            if counter == 4:
-                                tmp_list.append(line)
-                                # append to result
-                                result_list.append(tmp_list)
-                                # and clear the counter and tmp_list
-                                tmp_list = []
-                                counter = 0
-                                # next iteration
-                                continue
-                        if sepa_payment and counter:
-                            # payment name
-                            if counter == 1:
-                                tmp_list.append(line)
-                                counter += 1
-                                # next iteration
-                                continue
-                            # line with date for the SEPA
-                            if counter == 2:
-                                # append the date
-                                tmp_list.append(date_fmt(line))
-                                # formatting list
-                                tmp_list[2], tmp_list[3] = tmp_list[3], tmp_list[2]
-                                # append tmp to the result
-                                result_list.append(tmp_list)
-                                # and clear the counter and tmp_list
-                                tmp_list = []
-                                counter = 0
-                                # next iteration
-                                continue
+            pdf_parser.parse(result_list)
 
         payments_by_category = result_by_category(result_list)
 
-        report_month = report_file.split('.')[0]
-        eWriter.write(payments_by_category, report_month)
+        report_month = os.path.basename(report_file).split('.')[0]
+        e_writer.write(payments_by_category, report_month)
 
 
 if __name__ == "__main__":
