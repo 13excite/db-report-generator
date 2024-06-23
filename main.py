@@ -8,98 +8,9 @@ import sys
 import PyPDF2
 import xlsxwriter
 
+from config import config
+
 from typing import List
-
-UNKNOWN_CATEGORY_NAME = "UNKNOWN"
-
-shop_types = {
-    "GENERAL_SHOP": [
-        "ROSSMANN",
-        "DECATHLON",
-        "DASFUTTERHAUS",
-        "TKMaxx",
-    ],
-    "HEALTH": [
-        "Apotheke",
-        "AllDentZahnzentrum",
-        "BFShealthfinance",
-    ],
-    "FOOD_SHOP": [
-        "ALDI",
-        "REWE",
-        "Kaufland",
-        "Edeka",
-        "Metro",
-        "kliver",
-        "mixmarkt",
-        "penny",
-        "TEGUTSAGT",
-        "lemberg",
-        "ROSSMANN",
-        "JACQUES",
-        "E.LECLERC",
-        "GLOBUS",
-        "LIDLSAGTDANKE",
-        "LidlsagtDanke",
-        "AUCHAN",
-    ],
-    "CASH": [
-        ".DEUTSCHE BANKAG",
-    ],
-    "RENT": [
-        "NorbertBeran",
-        "VATTENFALLE",
-        "Vodafone",
-        "Immobilien",
-        "GCreGetsafe",
-        "Rundfunk",
-    ],
-    "Education": [
-        "Volkshochschule",
-        "Linuxf",
-        "Udemy",
-    ],
-    "CAFE": [
-        "BAECKER"
-        "Baecker ",
-        "Backerei",
-        "B.ckerei",
-        "Kulturbrauerei",
-        "Cafe",
-        "KAMPS",
-        "Restaurant",
-        "Liebesbrot",
-        "SCHROEER",
-        "Espresso",
-        "PIZZABOY",
-        "DRIES",
-    ],
-    "TRAVEL": [
-        "DBVertriebGmbH",
-        "BerlinerVerkehrsbetriebe",
-        "Booking",
-        "AUSTRIAN",  # austrian airlines
-        "RYANAIR",
-        "MALLORCA",
-        "TAXI",
-        "Hotel",
-        "Condor",
-        "MERCURE",
-        "AIRBNB",
-    ],
-    "Amazon": [
-        "Amazon",
-        "RivertyGmb",
-    ],
-    "InternetService": [
-        "Spotify",
-        "Blizzard",
-    ],
-    "EVENT": [
-        "Eventim.Sports",
-        "Kino",
-    ]
-}
 
 
 class ExcelWriter:
@@ -328,8 +239,30 @@ class PdfReportParser:
         return f"{year}.{month}.{day}"
 
 
+# extract date from the filename
+def extract_date(filename):
+    # Remove the .pdf extension
+    month_year = filename[:-4]
+    # Split month and year
+    month, year = month_year[:-4], month_year[-4:]
+    # Convert month to number
+    month_number = config.MONTH_TO_NUMBER[month.lower()]
+    return (int(year), month_number)
+
+
+# get list of report files and sort them by month and year
 def get_db_report_names(report_dir: str) -> list:
-    return glob.glob(f"{report_dir}/*.pdf")
+    file_pathes = glob.glob(f"{report_dir}/*.pdf")
+    unorderd_files = []
+    for path in file_pathes:
+        unorderd_files.append(os.path.basename(path))
+
+    sorted_file_list = sorted(unorderd_files, key=extract_date)
+
+    for idx, _ in enumerate(sorted_file_list):
+        sorted_file_list[idx] = os.path.join(report_dir, sorted_file_list[idx])
+
+    return sorted_file_list
 
 
 def result_by_category(result_list):
@@ -341,7 +274,7 @@ def result_by_category(result_list):
         # set False if shop_prefix will be found in the name of payment
         unknown_cat = True
         prefix_found = False
-        for cat_type, values in shop_types.items():
+        for cat_type, values in config.SHOP_TYPES.items():
             if prefix_found:
                 # break cat_type, values in shop_types.items() LOOP
                 break
@@ -362,10 +295,10 @@ def result_by_category(result_list):
                     break
 
         if unknown_cat:
-            if not result_map.get(UNKNOWN_CATEGORY_NAME, ''):
-                result_map[UNKNOWN_CATEGORY_NAME] = [lst]
+            if not result_map.get(config.UNKNOWN_CATEGORY_NAME, ''):
+                result_map[config.UNKNOWN_CATEGORY_NAME] = [lst]
             else:
-                result_map[UNKNOWN_CATEGORY_NAME].append(lst)
+                result_map[config.UNKNOWN_CATEGORY_NAME].append(lst)
             unknown_cat = True
             continue
     return result_map
@@ -403,7 +336,6 @@ def main():
             pdf_parser.parse(result_list)
 
         payments_by_category = result_by_category(result_list)
-
         report_month = os.path.basename(report_file).split('.')[0]
         e_writer.write(payments_by_category, report_month)
 
