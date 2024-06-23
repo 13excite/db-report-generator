@@ -12,6 +12,22 @@ from typing import List
 
 UNKNOWN_CATEGORY_NAME = "UNKNOWN"
 
+# used for sorting report files by month
+month_to_number = {
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+}
+
 shop_types = {
     "GENERAL_SHOP": [
         "ROSSMANN",
@@ -328,8 +344,32 @@ class PdfReportParser:
         return f"{year}.{month}.{day}"
 
 
+# extract date from the filename
+def extract_date(filename):
+    # Remove the .pdf extension
+    month_year = filename[:-4]
+    # Split month and year
+    month, year = month_year[:-4], month_year[-4:]
+    # Convert month to number
+    month_number = month_to_number[month.lower()]
+    return (int(year), month_number)
+
+
+# get list of report files and sort them by month and year
 def get_db_report_names(report_dir: str) -> list:
-    return glob.glob(f"{report_dir}/*.pdf")
+    #dir_path = os.path.dirname(report_file)
+
+    file_pathes = glob.glob(f"{report_dir}/*.pdf")
+    unorderd_files = []
+    for path in file_pathes:
+        unorderd_files.append(os.path.basename(path))
+
+    sorted_file_list = sorted(unorderd_files, key=extract_date)
+
+    for idx, _ in enumerate(sorted_file_list):
+        sorted_file_list[idx] = os.path.join(report_dir, sorted_file_list[idx])
+
+    return sorted_file_list
 
 
 def result_by_category(result_list):
@@ -403,7 +443,6 @@ def main():
             pdf_parser.parse(result_list)
 
         payments_by_category = result_by_category(result_list)
-
         report_month = os.path.basename(report_file).split('.')[0]
         e_writer.write(payments_by_category, report_month)
 
