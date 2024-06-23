@@ -12,6 +12,7 @@ from config import config
 
 from typing import List
 
+
 class ExcelWriter:
     merge_excel_style = {
         "bold": 1,
@@ -251,8 +252,6 @@ def extract_date(filename):
 
 # get list of report files and sort them by month and year
 def get_db_report_names(report_dir: str) -> list:
-    #dir_path = os.path.dirname(report_file)
-
     file_pathes = glob.glob(f"{report_dir}/*.pdf")
     unorderd_files = []
     for path in file_pathes:
