@@ -8,115 +8,9 @@ import sys
 import PyPDF2
 import xlsxwriter
 
+from config import config
+
 from typing import List
-
-UNKNOWN_CATEGORY_NAME = "UNKNOWN"
-
-# used for sorting report files by month
-month_to_number = {
-    "january": 1,
-    "february": 2,
-    "march": 3,
-    "april": 4,
-    "may": 5,
-    "june": 6,
-    "july": 7,
-    "august": 8,
-    "september": 9,
-    "october": 10,
-    "november": 11,
-    "december": 12,
-}
-
-shop_types = {
-    "GENERAL_SHOP": [
-        "ROSSMANN",
-        "DECATHLON",
-        "DASFUTTERHAUS",
-        "TKMaxx",
-    ],
-    "HEALTH": [
-        "Apotheke",
-        "AllDentZahnzentrum",
-        "BFShealthfinance",
-    ],
-    "FOOD_SHOP": [
-        "ALDI",
-        "REWE",
-        "Kaufland",
-        "Edeka",
-        "Metro",
-        "kliver",
-        "mixmarkt",
-        "penny",
-        "TEGUTSAGT",
-        "lemberg",
-        "ROSSMANN",
-        "JACQUES",
-        "E.LECLERC",
-        "GLOBUS",
-        "LIDLSAGTDANKE",
-        "LidlsagtDanke",
-        "AUCHAN",
-    ],
-    "CASH": [
-        ".DEUTSCHE BANKAG",
-    ],
-    "RENT": [
-        "NorbertBeran",
-        "VATTENFALLE",
-        "Vodafone",
-        "Immobilien",
-        "GCreGetsafe",
-        "Rundfunk",
-    ],
-    "Education": [
-        "Volkshochschule",
-        "Linuxf",
-        "Udemy",
-    ],
-    "CAFE": [
-        "BAECKER"
-        "Baecker ",
-        "Backerei",
-        "B.ckerei",
-        "Kulturbrauerei",
-        "Cafe",
-        "KAMPS",
-        "Restaurant",
-        "Liebesbrot",
-        "SCHROEER",
-        "Espresso",
-        "PIZZABOY",
-        "DRIES",
-    ],
-    "TRAVEL": [
-        "DBVertriebGmbH",
-        "BerlinerVerkehrsbetriebe",
-        "Booking",
-        "AUSTRIAN",  # austrian airlines
-        "RYANAIR",
-        "MALLORCA",
-        "TAXI",
-        "Hotel",
-        "Condor",
-        "MERCURE",
-        "AIRBNB",
-    ],
-    "Amazon": [
-        "Amazon",
-        "RivertyGmb",
-    ],
-    "InternetService": [
-        "Spotify",
-        "Blizzard",
-    ],
-    "EVENT": [
-        "Eventim.Sports",
-        "Kino",
-    ]
-}
-
 
 class ExcelWriter:
     merge_excel_style = {
@@ -351,7 +245,7 @@ def extract_date(filename):
     # Split month and year
     month, year = month_year[:-4], month_year[-4:]
     # Convert month to number
-    month_number = month_to_number[month.lower()]
+    month_number = config.MONTH_TO_NUMBER[month.lower()]
     return (int(year), month_number)
 
 
@@ -381,7 +275,7 @@ def result_by_category(result_list):
         # set False if shop_prefix will be found in the name of payment
         unknown_cat = True
         prefix_found = False
-        for cat_type, values in shop_types.items():
+        for cat_type, values in config.SHOP_TYPES.items():
             if prefix_found:
                 # break cat_type, values in shop_types.items() LOOP
                 break
@@ -402,10 +296,10 @@ def result_by_category(result_list):
                     break
 
         if unknown_cat:
-            if not result_map.get(UNKNOWN_CATEGORY_NAME, ''):
-                result_map[UNKNOWN_CATEGORY_NAME] = [lst]
+            if not result_map.get(config.UNKNOWN_CATEGORY_NAME, ''):
+                result_map[config.UNKNOWN_CATEGORY_NAME] = [lst]
             else:
-                result_map[UNKNOWN_CATEGORY_NAME].append(lst)
+                result_map[config.UNKNOWN_CATEGORY_NAME].append(lst)
             unknown_cat = True
             continue
     return result_map
