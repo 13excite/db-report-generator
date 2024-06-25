@@ -136,14 +136,16 @@ class PdfReportParser:
 
                         # 1 index is payment type: SEPA, Bar or Kartenzahlung
                         payment_type = amount_and_type[1]
-                        self.__payment_data = self.__get_payment_type(payment_type)
+                        self.__payment_data = self.__get_payment_type(
+                            payment_type)
 
-                        tmp_list.extend([self.__payment_data.type_text, amount])
+                        tmp_list.extend(
+                            [self.__payment_data.type_text, amount])
                         counter += 1
                         # next iteration
                         continue
                     if (self.__payment_data.card_payment or
-                        self.__payment_data.bargeld_payment) and counter:
+                            self.__payment_data.bargeld_payment) and counter:
                         if counter == 1:
                             # unneeded info
                             counter += 1
@@ -192,12 +194,10 @@ class PdfReportParser:
                             # next iteration
                             continue
 
-
     def __get_payment_type(self, payment_type: str) -> PaymentData:
         sepa_payment = self.__is_sepa(payment_type)
         card_payment = self.__is_card(payment_type)
         bargeld_payment = self.__is_bargeld(payment_type)
-
 
         pyment_type_str = "Unknown"
         if card_payment:
@@ -209,8 +209,8 @@ class PdfReportParser:
 
         return PaymentData(pyment_type_str, card_payment, sepa_payment, bargeld_payment)
 
-
     # check if the payment type is card payment
+
     @staticmethod
     def __is_card(type_string):
         if type_string.startswith("Kartenz"):
