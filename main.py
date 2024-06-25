@@ -10,7 +10,16 @@ import xlsxwriter
 
 from config import config
 
+from dataclasses import dataclass
 from typing import List
+
+
+@dataclass
+class PaymentData:
+    type_text: str
+    card_payment: bool
+    sepa_payment: bool
+    bargeld_payment: bool
 
 
 class ExcelWriter:
@@ -85,6 +94,7 @@ class PdfReportParser:
     def __init__(self) -> None:
         # self.result_list = []
         self.__reader: PyPDF2.PdfReader = None
+        self.__payment_data: PaymentData = None
 
     # read pdf file
     def read_pdf(self, file_stream: io.BufferedReader):
@@ -98,12 +108,6 @@ class PdfReportParser:
 
             # -1 means that lines with payment information haven't yet read
             counter = -1
-            # set True if it's a line with SEPA transaction info
-            sepa_payment = False
-            # set True if it's a line with payment by card info
-            card_payment = False
-
-            bargeld_payment = False
 
             # tmp_list contains temporary data that will be inserted into the result_list
             tmp_list = []
@@ -130,28 +134,16 @@ class PdfReportParser:
                         # 0 index is amount
                         amount = self.__amount_fmt(amount_and_type[0])
 
-                        # 1 index is payment type: SEPA or Kartenzahlung
+                        # 1 index is payment type: SEPA, Bar or Kartenzahlung
                         payment_type = amount_and_type[1]
+                        self.__payment_data = self.__get_payment_type(payment_type)
 
-                        # TODO: move payment type checker to the separate function
-                        # and check the type of payment
-                        sepa_payment = self.__is_sepa(payment_type)
-                        card_payment = self.__is_card(payment_type)
-                        bargeld_payment = self.__is_bargeld(payment_type)
-
-                        # prepare a tmp result
-                        if card_payment:
-                            tmp_list.extend(["Karten", amount])
-                            counter += 1
-                        if sepa_payment:
-                            tmp_list.extend(["SEPA", amount])
-                            counter += 1
-                        if bargeld_payment:
-                            tmp_list.extend(["Bargeldauszahlung", amount])
-                            counter += 1
+                        tmp_list.extend([self.__payment_data.type_text, amount])
+                        counter += 1
                         # next iteration
                         continue
-                    if (card_payment or bargeld_payment) and counter:
+                    if (self.__payment_data.card_payment or
+                        self.__payment_data.bargeld_payment) and counter:
                         if counter == 1:
                             # unneeded info
                             counter += 1
@@ -179,7 +171,7 @@ class PdfReportParser:
                             counter = 0
                             # next iteration
                             continue
-                    if sepa_payment and counter:
+                    if self.__payment_data.sepa_payment and counter:
                         # payment name
                         if counter == 1:
                             tmp_list.append(line)
@@ -199,6 +191,24 @@ class PdfReportParser:
                             counter = 0
                             # next iteration
                             continue
+
+
+    def __get_payment_type(self, payment_type: str) -> PaymentData:
+        sepa_payment = self.__is_sepa(payment_type)
+        card_payment = self.__is_card(payment_type)
+        bargeld_payment = self.__is_bargeld(payment_type)
+
+
+        pyment_type_str = "Unknown"
+        if card_payment:
+            pyment_type_str = "Karten"
+        elif sepa_payment:
+            pyment_type_str = "SEPA"
+        elif bargeld_payment:
+            pyment_type_str = "Bargeldauszahlung"
+
+        return PaymentData(pyment_type_str, card_payment, sepa_payment, bargeld_payment)
+
 
     # check if the payment type is card payment
     @staticmethod
