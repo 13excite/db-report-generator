@@ -92,7 +92,7 @@ class ExcelWriter:
 class PdfReportParser:
 
     def __init__(self) -> None:
-        # self.result_list = []
+        self._result: List = []
         self.__reader: PyPDF2.PdfReader = None
         self.__payment_data: PaymentData = None
 
@@ -100,7 +100,7 @@ class PdfReportParser:
     def read_pdf(self, file_stream: io.BufferedReader):
         self.__reader = PyPDF2.PdfReader(file_stream)
 
-    def parse(self, result_list: List):
+    def parse(self):
         for page_num, _ in enumerate(self.__reader.pages):
 
             page1 = self.__reader.pages[page_num]
@@ -109,7 +109,7 @@ class PdfReportParser:
             # -1 means that lines with payment information haven't yet read
             counter = -1
 
-            # tmp_list contains temporary data that will be inserted into the result_list
+            # tmp_list contains temporary data that will be inserted into the self._result
             tmp_list = []
             for line in pdf_data.split('\n'):
                 if counter < 0:
@@ -167,7 +167,7 @@ class PdfReportParser:
                         if counter == 4:
                             tmp_list.append(line)
                             # append to result
-                            result_list.append(tmp_list)
+                            self._result.append(tmp_list)
                             # and clear the counter and tmp_list
                             tmp_list = []
                             counter = 0
@@ -187,7 +187,7 @@ class PdfReportParser:
                             # formatting list
                             tmp_list[2], tmp_list[3] = tmp_list[3], tmp_list[2]
                             # append tmp to the result
-                            result_list.append(tmp_list)
+                            self._result.append(tmp_list)
                             # and clear the counter and tmp_list
                             tmp_list = []
                             counter = 0
@@ -209,8 +209,15 @@ class PdfReportParser:
 
         return PaymentData(pyment_type_str, card_payment, sepa_payment, bargeld_payment)
 
-    # check if the payment type is card payment
+    @property
+    def result(self):
+        return self._result
 
+    @result.setter
+    def result(self, value: List):
+        self._result = value
+
+    # check if the payment type is card payment
     @staticmethod
     def _is_card(type_string):
         if type_string.startswith("Kartenz"):
@@ -338,14 +345,12 @@ def main():
 
     for report_file in get_db_report_names(args.input):
         with open(report_file, "rb") as file:
-
             pdf_parser.read_pdf(file)
+            # reset the result list and parse the pdf file
+            pdf_parser.result = []
+            pdf_parser.parse()
 
-            # TODO: use result_list as a class attribute
-            result_list = []
-            pdf_parser.parse(result_list)
-
-        payments_by_category = result_by_category(result_list)
+        payments_by_category = result_by_category(pdf_parser.result)
         report_month = os.path.basename(report_file).split('.')[0]
         e_writer.write(payments_by_category, report_month)
 
