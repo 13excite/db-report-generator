@@ -7,16 +7,6 @@ from config import config
 from excel.writer import ExcelWriter
 from pdf_report.parser import PdfReportParser
 
-from dataclasses import dataclass
-
-
-@dataclass
-class PaymentData:
-    type_text: str
-    card_payment: bool
-    sepa_payment: bool
-    bargeld_payment: bool
-
 
 # extract date from the filename
 def extract_date(filename):
