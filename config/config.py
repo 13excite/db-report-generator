@@ -65,8 +65,7 @@ SHOP_TYPES = {
         "Udemy",
     ],
     "CAFE": [
-        "BAECKER"
-        "Baecker ",
+        "Baecker",
         "Backerei",
         "B.ckerei",
         "Kulturbrauerei",

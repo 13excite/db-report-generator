@@ -45,9 +45,9 @@ class ExcelWriter:
         self.workbook.close()
 
     def write(self, payments_by_category: dict, sheet_name) -> None:
-        self.__excel_writer(payments_by_category, sheet_name)
+        self._excel_writer(payments_by_category, sheet_name)
 
-    def __excel_writer(self, payments_by_category: dict, sheet_name) -> None:
+    def _excel_writer(self, payments_by_category: dict, sheet_name) -> None:
         worksheet = self.workbook.add_worksheet(sheet_name)
         # payments_by_category values indexes:
         # idx_payment_type = 0
@@ -92,7 +92,7 @@ class ExcelWriter:
 class PdfReportParser:
 
     def __init__(self) -> None:
-        # self.result_list = []
+        self._result: List = []
         self.__reader: PyPDF2.PdfReader = None
         self.__payment_data: PaymentData = None
 
@@ -100,7 +100,7 @@ class PdfReportParser:
     def read_pdf(self, file_stream: io.BufferedReader):
         self.__reader = PyPDF2.PdfReader(file_stream)
 
-    def parse(self, result_list: List):
+    def parse(self):
         for page_num, _ in enumerate(self.__reader.pages):
 
             page1 = self.__reader.pages[page_num]
@@ -109,7 +109,7 @@ class PdfReportParser:
             # -1 means that lines with payment information haven't yet read
             counter = -1
 
-            # tmp_list contains temporary data that will be inserted into the result_list
+            # tmp_list contains temporary data that will be inserted into the self._result
             tmp_list = []
             for line in pdf_data.split('\n'):
                 if counter < 0:
@@ -132,7 +132,7 @@ class PdfReportParser:
                         amount_and_type = line.split(' ')
 
                         # 0 index is amount
-                        amount = self.__amount_fmt(amount_and_type[0])
+                        amount = self._amount_fmt(amount_and_type[0])
 
                         # 1 index is payment type: SEPA, Bar or Kartenzahlung
                         payment_type = amount_and_type[1]
@@ -153,7 +153,7 @@ class PdfReportParser:
                             continue
                         # line with date for the card info
                         if counter == 2:
-                            tmp_list.append(self.__date_fmt(line))
+                            tmp_list.append(self._date_fmt(line))
                             counter += 1
                             # next iteration
                             continue
@@ -167,7 +167,7 @@ class PdfReportParser:
                         if counter == 4:
                             tmp_list.append(line)
                             # append to result
-                            result_list.append(tmp_list)
+                            self._result.append(tmp_list)
                             # and clear the counter and tmp_list
                             tmp_list = []
                             counter = 0
@@ -183,11 +183,11 @@ class PdfReportParser:
                         # line with date for the SEPA
                         if counter == 2:
                             # append the date
-                            tmp_list.append(self.__date_fmt(line))
+                            tmp_list.append(self._date_fmt(line))
                             # formatting list
                             tmp_list[2], tmp_list[3] = tmp_list[3], tmp_list[2]
                             # append tmp to the result
-                            result_list.append(tmp_list)
+                            self._result.append(tmp_list)
                             # and clear the counter and tmp_list
                             tmp_list = []
                             counter = 0
@@ -195,9 +195,9 @@ class PdfReportParser:
                             continue
 
     def __get_payment_type(self, payment_type: str) -> PaymentData:
-        sepa_payment = self.__is_sepa(payment_type)
-        card_payment = self.__is_card(payment_type)
-        bargeld_payment = self.__is_bargeld(payment_type)
+        sepa_payment = self._is_sepa(payment_type)
+        card_payment = self._is_card(payment_type)
+        bargeld_payment = self._is_bargeld(payment_type)
 
         pyment_type_str = "Unknown"
         if card_payment:
@@ -209,31 +209,38 @@ class PdfReportParser:
 
         return PaymentData(pyment_type_str, card_payment, sepa_payment, bargeld_payment)
 
-    # check if the payment type is card payment
+    @property
+    def result(self):
+        return self._result
 
+    @result.setter
+    def result(self, value: List):
+        self._result = value
+
+    # check if the payment type is card payment
     @staticmethod
-    def __is_card(type_string):
+    def _is_card(type_string):
         if type_string.startswith("Kartenz"):
             return True
         return False
 
     # check if the payment type is cash withdrawal
     @staticmethod
-    def __is_bargeld(type_string):
+    def _is_bargeld(type_string):
         if type_string.startswith("Bargeld"):
             return True
         return False
 
     # check if the payment type is SEPA transaction
     @staticmethod
-    def __is_sepa(type_string):
+    def _is_sepa(type_string):
         if type_string.startswith("SEPA"):
             return True
         return False
 
     # format amount from '1.234,00' to '1234.00
     @staticmethod
-    def __amount_fmt(amount: str):
+    def _amount_fmt(amount: str):
         if ("," in amount) and ("." in amount):
             r = amount.replace(".", "").replace(",", ".")
             return float(r)
@@ -241,7 +248,7 @@ class PdfReportParser:
 
     # format date from '202304.12.' to '2023.04.12'
     @staticmethod
-    def __date_fmt(date_str: str):
+    def _date_fmt(date_str: str):
         month = date_str.split(".")[1]
         year = date_str[:4]
         day = date_str[4:6]
@@ -338,14 +345,12 @@ def main():
 
     for report_file in get_db_report_names(args.input):
         with open(report_file, "rb") as file:
-
             pdf_parser.read_pdf(file)
+            # reset the result list and parse the pdf file
+            pdf_parser.result = []
+            pdf_parser.parse()
 
-            # TODO: use result_list as a class attribute
-            result_list = []
-            pdf_parser.parse(result_list)
-
-        payments_by_category = result_by_category(result_list)
+        payments_by_category = result_by_category(pdf_parser.result)
         report_month = os.path.basename(report_file).split('.')[0]
         e_writer.write(payments_by_category, report_month)
 
