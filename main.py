@@ -74,7 +74,7 @@ def result_by_category(result_list):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-o', '--out', type=str,
                         default="db_report.xlsx",

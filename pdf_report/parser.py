@@ -2,11 +2,11 @@ import io
 import re
 import PyPDF2
 
-from dataclasses import dataclass
+from dataclasses import dataclass as struct
 from typing import List
 
 
-@dataclass
+@struct
 class _paymentData:
     type_text: str
     card_payment: bool
