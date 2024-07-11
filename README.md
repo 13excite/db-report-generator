@@ -13,7 +13,7 @@ I created a small service that generates the expense report by
 categories in excel format based on Kontoauszug PDF files sent
 by Deutsche Bank.
 
-![report](./img/report.png)
+![report](./docs/img/report.png)
 
 ## How to use
 
