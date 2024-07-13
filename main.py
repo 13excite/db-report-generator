@@ -5,7 +5,7 @@ import sys
 
 from config import config
 from excel.writer import ExcelWriter
-from pdf_report.parser import PdfReportParser
+from parser.pdf import PdfReportParser
 
 
 # extract date from the filename
