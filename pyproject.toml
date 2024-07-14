@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "db-report-generator"
+version = "0.1.0"
+description = ""
+authors = ["Vladimir Dulenov <originalrad50@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+appdirs = "1.4.4"
+astroid = "3.0.3"
+autopep8 = "2.3.0"
+baron = "0.3"
+dill = "0.3.8"
+isort = "5.13.2"
+mccabe = "0.7.0"
+platformdirs = "4.2.0"
+pycodestyle = "2.12.0"
+pylint = "3.0.3"
+pypdf2 = "3.0.1"
+rply = "0.7.8"
+tomli = "2.0.1"
+tomlkit = "0.12.3"
+typing-extensions = "4.9.0"
+xlsxwriter = "3.1.9"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
