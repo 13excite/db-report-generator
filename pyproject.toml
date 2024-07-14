@@ -1,8 +1,9 @@
 [tool.poetry]
 name = "db-report-generator"
 version = "0.1.0"
-description = ""
+description = "Expense generator based on Deutsche Bank PDF files"
 authors = ["Vladimir Dulenov <originalrad50@gmail.com>"]
+license = "MIT"
 readme = "README.md"
 
 [tool.poetry.dependencies]
