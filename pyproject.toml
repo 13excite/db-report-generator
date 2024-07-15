@@ -1,10 +1,12 @@
 [tool.poetry]
-name = "db-report-generator"
+name = "dbreportgenerator"
 version = "0.1.0"
-description = "Expense generator based on Deutsche Bank PDF files"
+description = "MIT"
 authors = ["Vladimir Dulenov <originalrad50@gmail.com>"]
-license = "MIT"
 readme = "README.md"
+
+[tool.poetry.scripts]
+peneira = "dbreportgenerator.cli:main"
 
 [tool.poetry.dependencies]
 python = "^3.12"
