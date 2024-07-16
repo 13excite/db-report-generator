@@ -3,9 +3,10 @@ import glob
 import os
 import sys
 
-from config import config
-from excel.writer import ExcelWriter
-from parser.pdf import PdfReportParser
+from dbreportgenerator.src.config import config
+from dbreportgenerator.src.parser.pdf import PdfReportParser
+from dbreportgenerator.src.excel.writer import ExcelWriter
+
 
 
 # extract date from the filename
