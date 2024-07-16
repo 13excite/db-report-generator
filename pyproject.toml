@@ -6,7 +6,7 @@ authors = ["Vladimir Dulenov <originalrad50@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.scripts]
-peneira = "dbreportgenerator.cli:main"
+dbreportgenerator = "dbreportgenerator.cli:main"
 
 [tool.poetry.dependencies]
 python = "^3.12"
