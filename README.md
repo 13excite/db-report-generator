@@ -17,8 +17,20 @@ by Deutsche Bank.
 
 ## How to use
 
-```pyhton
-usage: main.py [-h] [-o OUT] [-i INPUT]
+Project uses [poetry](https://python-poetry.org/) for
+dependency management and packaging. Please
+[install poetry](https://python-poetry.org/docs/#installation) for normal work
+with the project. Perhaps later I will finish the tests and publish the
+project on PyPi.
+
+```bash
+### install the project
+$ poetry install
+
+### run the generator
+$ poetry run dbreportgenerator --help
+
+usage: dbreportgenerator [-h] [-o OUT] [-i INPUT]
 
 options:
   -h, --help            show this help message and exit
