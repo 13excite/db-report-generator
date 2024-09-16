@@ -1,0 +1,8 @@
+helm repo add minio https://charts.min.io/
+
+helm install --set resources.requests.memory=512Mi --set replicas=1  --set mode=standalone --set rootUser=rootuser,rootPassword=rootpass123  --generate-name minio/minio
+
+helm install my-argo argo/argo-workflows -f infra/argo/values.yaml
+
+
+kubectl create secret  generic my-minio-cred --from-literal=access-key='1234' --from-literal=secret-key='abcd'
